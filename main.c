@@ -26,9 +26,10 @@
 
 /* global vars */
 volatile uint32_t   regTimer = 0;	 /* timer register, starts at 0 on startup, 500uS steps */
-volatile uint8_t	keyRegOld;
-volatile uint8_t	keyReg;          /* register that holds key state */
-volatile uint8_t	keyPulse;
+volatile uint32_t	regDelay = 0;
+
+volatile e_LEDState		stateSysLED= off;
+volatile e_LEDState		stateWifiLED = off;
 
 volatile int		tapState =0;
 volatile int		heartbeatState;
@@ -37,11 +38,6 @@ volatile uint32_t	heartbeatStartTime;
 volatile uint32_t	oldTime;
 volatile int		tapFlag = 0;
 
-volatile uint8_t	programArray[MAXSTEPS] = { 0x01, 0x02, 0x04, 0x08};
-volatile int		programStep = 0;
-volatile int		programLength = 4;
-volatile uint8_t	programState = 0;
-volatile uint32_t	programCycleStartTime;
 
 volatile int 		programmingState =0;
 
@@ -68,26 +64,98 @@ int main(void)
 	/* enable interrupts */
 	/* dint(); */ /* opposite is  */
 	eint();
-	
 	/* switch to low power mode, act on interrupts */
 	/* LPM0; */			
 	
+	//stateSysLED = on;
+	//stateSysLED = off;
+	stateWifiLED = slowblink;
+	stateSysLED = fastblink;
+
 	while(1)
 	{
-		delayMs(500);
-		P2OUT = 0xff;
-		delayMs(500);
-		P2OUT= 0x00;
-	
+		nop();
 	}
 }
 
 /* 	
 	this interrupt fires at 1KHz and does the pwm routine
 */
+
 interrupt(TIMERA0_VECTOR) TimerA0_interrupt(void)
 {   
+		
+	if(regTimer == regDelay) regDelay = regTimer + delayTime;
+	regTimer += 1;
+		
+	switch(stateSysLED)
+	{
+		case off:
+		P2OUT &= ~LED_SYS;
+		break;
 
+		case on:
+		P2OUT |= LED_SYS;
+		break;
+
+		case slowblink:
+		if(regTimer==(regDelay-1))
+		{
+			P2OUT ^= LED_SYS;
+		}
+		break;
+
+		case fastblink:
+		if(regTimer==(regDelay-25))
+		{
+			P2OUT^= LED_SYS;
+		}
+		
+		break;
+
+		default:
+		stateSysLED = off;
+		break;
+	}
+	
+	
+	switch(stateWifiLED)
+	{
+		case off:
+		P2OUT &= ~LED_WIFI;
+		break;
+
+		case on:
+		P2OUT |= LED_WIFI;
+		break;
+
+		case slowblink:
+		if(regTimer & 0x100)
+		{
+			P2OUT |= LED_WIFI;
+		}
+		else
+		{
+			P2OUT &=  ~LED_WIFI;
+		}
+		break;
+
+		case fastblink:
+		if((regTimer & 0x80))
+		{
+			_setBit(P2OUT, LED_WIFI);
+		}
+		else
+		{
+			P2OUT &=  ~LED_WIFI;
+		}
+		break;
+
+		default:
+		stateWifiLED = off;
+		break;
+	}
+	
 	return;
 } 
 
@@ -108,7 +176,7 @@ void initIO(void)
 	
 	P2DIR = 0xFF;		/* set up port directions */
 	P2REN = 0x00;		/* enable internal resistors */
-	//P2OUT = BIT7;		/* set resistors to pullup */
+	P2OUT = 0x00;		/* set resistors to pullup */
 	
 	return;
 }
