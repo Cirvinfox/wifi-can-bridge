@@ -7,13 +7,13 @@
  *
  *        Changed: 2015-9-12
  *		
- *      Author(s):  Corbin Irvin (cirvinfox)
+ *      Author(s):  C. Addison Irvin (cirvinfox)
  *
  * =====================================================================================
  */
 
 /* 
- * (c) 2011 Corbin Irvin 
+ * (c) 2015 C. Addison Irvin 
  *
  * Please see LICENSE for License details.
  *
@@ -70,7 +70,7 @@ int main(void)
 	//stateSysLED = on;
 	//stateSysLED = off;
 	stateWifiLED = slowblink;
-	stateSysLED = fastblink;
+	stateSysLED = slowblink;
 
 	while(1)
 	{
@@ -81,13 +81,12 @@ int main(void)
 /* 	
 	this interrupt fires at 1KHz and does the pwm routine
 */
-
 interrupt(TIMERA0_VECTOR) TimerA0_interrupt(void)
 {   
 		
 	if(regTimer == regDelay) regDelay = regTimer + delayTime;
 	regTimer += 1;
-		
+
 	switch(stateSysLED)
 	{
 		case off:
@@ -99,17 +98,9 @@ interrupt(TIMERA0_VECTOR) TimerA0_interrupt(void)
 		break;
 
 		case slowblink:
-		if(regTimer==(regDelay-1))
-		{
-			P2OUT ^= LED_SYS;
-		}
 		break;
 
 		case fastblink:
-		if(regTimer==(regDelay-25))
-		{
-			P2OUT^= LED_SYS;
-		}
 		
 		break;
 
@@ -130,25 +121,18 @@ interrupt(TIMERA0_VECTOR) TimerA0_interrupt(void)
 		break;
 
 		case slowblink:
-		if(regTimer & 0x100)
+		if(regTimer == (regDelay-1))
 		{
-			P2OUT |= LED_WIFI;
-		}
-		else
-		{
-			P2OUT &=  ~LED_WIFI;
+			P2OUT ^= LED_WIFI;
 		}
 		break;
 
 		case fastblink:
-		if((regTimer & 0x80))
+		if(regTimer+250==(regDelay-250))
 		{
-			_setBit(P2OUT, LED_WIFI);
+			P2OUT^= LED_WIFI;
 		}
-		else
-		{
-			P2OUT &=  ~LED_WIFI;
-		}
+
 		break;
 
 		default:
